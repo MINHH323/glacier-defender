@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -8,144 +8,44 @@
     
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-    <style>
-        .progress-container { width: 100%; background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; margin-top: 5px; overflow: hidden; }
-        .progress-fill { width: 0%; height: 100%; background: #00e5ff; transition: width 0.3s; box-shadow: 0 0 10px #00e5ff; }
-        .hp-fill { background: #ff4d4d; transition: width 0.3s; height: 100%; }
-        .rk-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #444; font-size: 0.9em; color: white; }
-        .black-carbon { position: absolute; width: 40px; height: 40px; background: #000; border-radius: 50%; cursor: pointer; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
-    </style>
 </head>
 <body>
 
 <div class="game-container">
     <div class="header">
         <div class="lvl">STAGE <span id="level-num">1</span></div>
-        <div class="hp-bar" style="width: 200px; height: 20px; background: #333; border: 2px solid #fff;"><div id="hp-fill" class="hp-fill" style="width: 100%;"></div></div>
+        <div class="hp-bar-bg"><div id="hp-fill" class="hp-fill"></div></div>
         <div class="progress-container"><div id="prog-fill" class="progress-fill"></div></div>
     </div>
 
-    <div id="viewport" class="viewport" style="position: relative; width: 100%; height: 80vh; background: #1a2a3a; overflow: hidden;">
-        <div class="stats" style="color: white; padding: 10px;">SCORE: <span id="score-text">0</span></div>
-        <div id="toast" class="toast" style="position: absolute; top: -50px; left: 50%; transform: translateX(-50%); color: #fff; transition: 0.5s;"></div>
-        <div id="glacier" style="position: absolute; bottom: 0; width: 100%; height: 50px; background: #e0f7fa;"></div>
+    <div id="viewport" class="viewport">
+        <div class="stats">SCORE: <span id="score-text">0</span></div>
+        <div id="toast" class="toast"></div>
+        <div id="glacier" class="glacier"></div>
 
-        <div id="start-screen" class="overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10;">
-            <h1 style="color: #00e5ff;">GLACIER DEFENDER</h1>
-            <input type="text" id="user-name" placeholder="Enter name" style="padding: 10px; margin: 10px;">
-            <button onclick="startGame()" style="padding: 10px 30px; cursor: pointer;">START MISSION</button>
+        <div id="start-screen" class="overlay">
+            <div class="content-box">
+                <h1 class="neon-text">GLACIER DEFENDER</h1>
+                <p>블랙카본으로부터 빙하를 지켜주세요!</p>
+                <input type="text" id="user-name" placeholder="닉네임 입력" maxlength="10">
+                <button onclick="startGame()">MISSION START</button>
+            </div>
         </div>
 
-        <div id="result-screen" class="overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10; color: white;">
-            <h2>MISSION OVER</h2>
-            <div id="final-score" style="font-size: 2em; margin: 20px;">0</div>
-            <div style="width: 250px; background: #222; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-                <small>GLOBAL TOP 5</small>
-                <div id="rank-list">Loading...</div>
+        <div id="result-screen" class="overlay" style="display:none;">
+            <div class="content-box">
+                <h2>MISSION OVER</h2>
+                <div id="final-score" class="final-score">0</div>
+                <div class="ranking-box">
+                    <small>GLOBAL TOP 5</small>
+                    <div id="rank-list">랭킹 로딩 중...</div>
+                </div>
+                <button onclick="location.reload()">RETRY</button>
             </div>
-            <button onclick="location.reload()">TRY AGAIN</button>
         </div>
     </div>
 </div>
 
-<script>
-// 1. 파이어베이스 설정 (고객님 프로젝트 값)
-const firebaseConfig = {
-  apiKey: "AIzaSyCGalYZ5WTs4xZiXpUU8XKa9aDZchMzFCM",
-  authDomain: "glacier-ranking.firebaseapp.com",
-  projectId: "glacier-ranking",
-  storageBucket: "glacier-ranking.firebasestorage.app",
-  messagingSenderId: "15457584160",
-  appId: "1:15457584160:web:d4c7090f026e80b61ca845"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-// 2. 게임 상태 변수
-let game = { hp: 100, score: 0, level: 1, speed: 3, rate: 1000, isOver: false, name: "" };
-let spawnTimer;
-
-// 시작 시 닉네임 기억
-window.onload = () => {
-    const saved = localStorage.getItem('glacier-nickname');
-    if(saved) document.getElementById('user-name').value = saved;
-    showRanks();
-};
-
-function startGame() {
-    game.name = document.getElementById('user-name').value || "Anonymous";
-    localStorage.setItem('glacier-nickname', game.name);
-    document.getElementById('start-screen').style.display = 'none';
-    spawnTimer = setInterval(spawn, game.rate);
-    animate();
-}
-
-function spawn() {
-    if(game.isOver) return;
-    const enemy = document.createElement('div');
-    enemy.className = 'black-carbon';
-    enemy.style.left = Math.random() * (window.innerWidth - 40) + 'px';
-    enemy.style.top = '-50px';
-    enemy.onclick = () => {
-        if(game.isOver) return;
-        game.score += 10;
-        document.getElementById('score-text').innerText = game.score;
-        enemy.remove();
-        checkLevelUp();
-    };
-    document.getElementById('viewport').appendChild(enemy);
-}
-
-function animate() {
-    if(game.isOver) return;
-    const enemies = document.getElementsByClassName('black-carbon');
-    const glacierTop = document.getElementById('glacier').offsetTop;
-
-    for(let enemy of enemies) {
-        let top = parseFloat(enemy.style.top) + game.speed;
-        enemy.style.top = top + 'px';
-        if(top + 40 > glacierTop) {
-            enemy.remove();
-            game.hp -= 10;
-            document.getElementById('hp-fill').style.width = game.hp + "%";
-            if(game.hp <= 0) endGame();
-        }
-    }
-    requestAnimationFrame(animate);
-}
-
-function checkLevelUp() {
-    let progress = ((game.score % 100) / 100) * 100;
-    document.getElementById('prog-fill').style.width = progress + "%";
-    if(game.score > 0 && game.score % 100 === 0) {
-        game.level++;
-        game.speed += 0.5;
-        document.getElementById('level-num').innerText = game.level;
-    }
-}
-
-async function endGame() {
-    game.isOver = true;
-    clearInterval(spawnTimer);
-    document.getElementById('result-screen').style.display = 'flex';
-    document.getElementById('final-score').innerText = game.score;
-    
-    // 랭킹 저장
-    try {
-        await db.collection("rankings").add({ n: game.name, s: game.score, t: Date.now() });
-        showRanks();
-    } catch(e) { console.error(e); }
-}
-
-async function showRanks() {
-    try {
-        const snap = await db.collection("rankings").orderBy("s", "desc").limit(5).get();
-        document.getElementById('rank-list').innerHTML = snap.docs.map((doc, i) => `
-            <div class="rk-item"><span>${i+1}. ${doc.data().n}</span><b>${doc.data().s}</b></div>
-        `).join('') || "No records.";
-    } catch(e) { document.getElementById('rank-list').innerText = "Loading error..."; }
-}
-</script>
+<script src="script.js"></script>
 </body>
 </html>
