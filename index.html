@@ -20,14 +20,13 @@
 
     <div id="viewport" class="viewport">
         <div class="stats">SCORE: <span id="score-text">0</span></div>
-        <div id="toast" class="toast"></div>
         <div id="glacier" class="glacier"></div>
 
         <div id="start-screen" class="overlay">
             <div class="content-box">
                 <h1 class="neon-text">GLACIER DEFENDER</h1>
-                <p>블랙카본으로부터 빙하를 지켜주세요!</p>
-                <input type="text" id="user-name" placeholder="닉네임 입력" maxlength="10">
+                <p>블랙카본을 클릭해서 빙하를 지키세요!</p>
+                <input type="text" id="user-name" placeholder="닉네임 입력">
                 <button onclick="startGame()">MISSION START</button>
             </div>
         </div>
@@ -38,7 +37,7 @@
                 <div id="final-score" class="final-score">0</div>
                 <div class="ranking-box">
                     <small>GLOBAL TOP 5</small>
-                    <div id="rank-list">랭킹 로딩 중...</div>
+                    <div id="rank-list">로딩 중...</div>
                 </div>
                 <button onclick="location.reload()">RETRY</button>
             </div>
