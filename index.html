@@ -3,14 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Glacier Defender</title>
     <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
     
+    <!-- 파이어베이스 라이브러리 연결 -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <style>
-        /* 스테이지 진행도 바 스타일 추가 */
+        /* 스테이지 진행도 바 및 UI 스타일 */
         .progress-container { width: 100%; background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; margin-top: 5px; overflow: hidden; }
         .progress-fill { width: 0%; height: 100%; background: #00e5ff; transition: width 0.3s; box-shadow: 0 0 10px #00e5ff; }
         .hp-fill { background: #ff4d4d; transition: width 0.3s; }
@@ -22,7 +24,9 @@
 <div class="game-container">
     <div class="header">
         <div class="lvl">STAGE <span id="level-num">1</span></div>
+        <!-- 1. 빙하 체력 바 -->
         <div class="hp-bar"><div id="hp-fill" class="hp-fill" style="width: 100%;"></div></div>
+        <!-- 2. 스테이지 진행도 바 (피드백 반영) -->
         <div class="progress-container"><div id="prog-fill" class="progress-fill"></div></div>
     </div>
 
@@ -37,7 +41,7 @@
                 <h1 class="neon-text">GLACIER DEFENDER</h1>
                 <div class="info-text">Protect the glacier from Black Carbon!<br><small style="opacity:0.7">Global ranking system is now LIVE.</small></div>
                 <input type="text" id="user-name" placeholder="Enter name" maxlength="10">
-                <button onclick="startGame()">START MISSION</button>
+                <button onclick="handleStartGame()">START MISSION</button>
             </div>
         </div>
 
@@ -56,7 +60,7 @@
 </div>
 
 <script>
-// 고객님이 보내주신 파이어베이스 설정값 적용
+// 파이어베이스 프로젝트 설정값
 const firebaseConfig = {
   apiKey: "AIzaSyCGalYZ5WTs4xZiXpUU8XKa9aDZchMzFCM",
   authDomain: "glacier-ranking.firebaseapp.com",
@@ -67,38 +71,18 @@ const firebaseConfig = {
   measurementId: "G-6XQXQZY9TY"
 };
 
+// 파이어베이스 초기화
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// 전 세계 랭킹 저장
-window.saveRank = async function() {
-    if (!game.name || game.score <= 0) return;
-    try {
-        await db.collection("rankings").add({
-            n: game.name,
-            s: game.score,
-            t: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        showRanks();
-    } catch (e) { console.error(e); }
-};
-
-// 전 세계 랭킹 불러오기
-window.showRanks = async function() {
-    const list = document.getElementById('rank-list');
-    try {
-        const snapshot = await db.collection("rankings").orderBy("s", "desc").limit(5).get();
-        list.innerHTML = snapshot.docs.map((doc, i) => `
-            <div class="rk-item">
-                <span>${i+1}. ${doc.data().n}</span>
-                <b style="color:#00e5ff">${doc.data().s}</b>
-            </div>
-        `).join('') || "No records yet.";
-    } catch (e) { list.innerHTML = "Connect to Database..."; }
-};
-
-// 게임 로직 업데이트 (진행도 바 & 시간 연장)
+// 화면이 열릴 때 기억해둔 닉네임이 있다면 자동으로 채워넣기
 window.addEventListener('load', () => {
+    const savedName = localStorage.getItem('glacier-nickname');
+    if (savedName) {
+        document.getElementById('user-name').value = savedName;
+    }
+    
+    // 게임 내부 핵심 로직 연결 및 피드백 기능 작동
     if (typeof game !== 'undefined') {
         window.hitFail = function() {
             game.hp -= 4;
@@ -113,10 +97,11 @@ window.addEventListener('load', () => {
             if (game.hp < 100) { game.hp = Math.min(100, game.hp + 1); document.getElementById('hp-fill').style.width = game.hp + "%"; }
             refresh();
 
-            // 진행도 바 업데이트 (600점 기준)
+            // 실시간으로 채워지는 스테이지 진행도 바 (600점 기준)
             let progress = ((game.score % 600) / 600) * 100;
             document.getElementById('prog-fill').style.width = progress + "%";
 
+            // 600점마다 자동으로 다음 스테이지 무한 레벨업
             if (game.score >= game.level * 600) { 
                 game.level++;
                 game.speed += 0.4;
@@ -132,6 +117,44 @@ window.addEventListener('load', () => {
         };
     }
 });
+
+// 시작 버튼을 누르면 입력한 닉네임을 저장하고 게임 실행
+function handleStartGame() {
+    const nameInput = document.getElementById('user-name').value;
+    if (nameInput) {
+        localStorage.setItem('glacier-nickname', nameInput);
+    }
+    if (typeof startGame === 'function') {
+        startGame();
+    }
+}
+
+// 실시간 전 세계 랭킹 저장 함수
+window.saveRank = async function() {
+    if (!game.name || game.score <= 0) return;
+    try {
+        await db.collection("rankings").add({
+            n: game.name,
+            s: game.score,
+            t: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showRanks();
+    } catch (e) { console.error(e); }
+};
+
+// 실시간 전 세계 랭킹 리스트 불러오기 (Top 5)
+window.showRanks = async function() {
+    const list = document.getElementById('rank-list');
+    try {
+        const snapshot = await db.collection("rankings").orderBy("s", "desc").limit(5).get();
+        list.innerHTML = snapshot.docs.map((doc, i) => `
+            <div class="rk-item">
+                <span>${i+1}. ${doc.data().n}</span>
+                <b style="color:#00e5ff">${doc.data().s}</b>
+            </div>
+        `).join('') || "No records yet.";
+    } catch (e) { list.innerHTML = "Connect to Database..."; }
+};
 </script>
 </body>
 </html>
