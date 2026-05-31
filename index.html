@@ -54,5 +54,43 @@
     </div>
 </div>
 
+<script>
+// 기존 script.js의 설정을 덮어써서 게임 시간을 늘리는 마법의 코드입니다.
+window.addEventListener('load', () => {
+    if (typeof game !== 'undefined') {
+        // 1. 블랙카본을 놓쳤을 때 깎이는 체력을 기존 8에서 4로 줄여서 오래 버티게 합니다.
+        window.hitFail = function() {
+            game.hp -= 4; 
+            document.getElementById('hp-fill').style.width = Math.max(0, game.hp) + "%";
+            refresh();
+            if (game.hp <= 0) endGame();
+        };
+        
+        // 2. 난이도가 올라가는(속도가 빨라지는) 레벨업 기준을 더 높여서 초반 단계를 길게 유지합니다.
+        window.hitSuccess = function() {
+            game.score += (10 * game.level);
+            document.getElementById('score').innerText = game.score;
+            if (game.hp < 100) { 
+                game.hp = Math.min(100, game.hp + 1); // 방어 성공 시 체력 회복량도 0.5에서 1로 상향
+                document.getElementById('hp-fill').style.width = game.hp + "%"; 
+            }
+            refresh();
+            // 레벨업 기준을 기존 300점 단위에서 600점 단위로 늘려 플레이 시간을 연장합니다.
+            if (game.score > game.level * 600) { 
+                game.level++;
+                game.speed += 0.5; // 속도 증가 폭도 완만하게 조절
+                game.rate = Math.max(200, game.rate - 80);
+                document.getElementById('level-num').innerText = game.level;
+                clearInterval(spawnTimer);
+                spawnTimer = setInterval(spawn, game.rate);
+                const ts = document.getElementById('toast');
+                ts.innerText = `LEVEL UP: STAGE ${game.level} 🚀`;
+                ts.style.top = "15px"; setTimeout(()=>ts.style.top="-50px", 2000);
+            }
+        };
+    }
+});
+</script>
+
 </body>
 </html>
